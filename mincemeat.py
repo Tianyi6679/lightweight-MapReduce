@@ -25,7 +25,7 @@
 
 import asynchat
 import asyncore
-import cPickle as pickle
+import pickle as pickle
 import hashlib
 import hmac
 import logging
@@ -281,11 +281,11 @@ class ServerChannel(Protocol):
 
     def post_auth_init(self):
         if self.server.mapfn:
-            self.send_command('mapfn', marshal.dumps(self.server.mapfn.func_code))
+            self.send_command('mapfn', marshal.dumps(self.server.mapfn.__code__))
         if self.server.reducefn:
-            self.send_command('reducefn', marshal.dumps(self.server.reducefn.func_code))
+            self.send_command('reducefn', marshal.dumps(self.server.reducefn.__code__))
         if self.server.collectfn:
-            self.send_command('collectfn', marshal.dumps(self.server.collectfn.func_code))
+            self.send_command('collectfn', marshal.dumps(self.server.collectfn.__code__))
         self.start_new_task()
     
 class TaskManager:
@@ -308,26 +308,26 @@ class TaskManager:
             self.state = TaskManager.MAPPING
         if self.state == TaskManager.MAPPING:
             try:
-                map_key = self.map_iter.next()
+                map_key = next(self.map_iter)
                 map_item = map_key, self.datasource[map_key]
                 self.working_maps[map_item[0]] = map_item[1]
                 return ('map', map_item)
             except StopIteration:
                 if len(self.working_maps) > 0:
-                    key = random.choice(self.working_maps.keys())
+                    key = random.choice(list(self.working_maps.keys()))
                     return ('map', (key, self.working_maps[key]))
                 self.state = TaskManager.REDUCING
-                self.reduce_iter = self.map_results.iteritems()
+                self.reduce_iter = iter(self.map_results.items())
                 self.working_reduces = {}
                 self.results = {}
         if self.state == TaskManager.REDUCING:
             try:
-                reduce_item = self.reduce_iter.next()
+                reduce_item = next(self.reduce_iter)
                 self.working_reduces[reduce_item[0]] = reduce_item[1]
                 return ('reduce', reduce_item)
             except StopIteration:
                 if len(self.working_reduces) > 0:
-                    key = random.choice(self.working_reduces.keys())
+                    key = random.choice(list(self.working_reduces.keys()))
                     return ('reduce', (key, self.working_reduces[key]))
                 self.state = TaskManager.FINISHED
         if self.state == TaskManager.FINISHED:
@@ -339,7 +339,7 @@ class TaskManager:
         if not data[0] in self.working_maps:
             return
 
-        for (key, values) in data[1].iteritems():
+        for (key, values) in data[1].items():
             if key not in self.map_results:
                 self.map_results[key] = []
             self.map_results[key].extend(values)

@@ -25,7 +25,7 @@
 
 import asynchat
 import asyncore
-import pickle as pickle
+import pickle
 import hashlib
 import hmac
 import logging
@@ -36,6 +36,7 @@ import random
 import socket
 import sys
 import types
+import binascii
 
 VERSION = "0.1.2"
 
@@ -51,7 +52,7 @@ class Protocol(asynchat.async_chat):
         else:
             asynchat.async_chat.__init__(self)
 
-        self.set_terminator("\n")
+        self.set_terminator(b"\n")
         self.buffer = []
         self.auth = None
         self.mid_command = False
@@ -60,25 +61,25 @@ class Protocol(asynchat.async_chat):
         self.buffer.append(data)
 
     def send_command(self, command, data=None):
-        if not ":" in command:
-            command += ":"
+        if not b":" in command:
+            command += b":"
         if data:
             pdata = pickle.dumps(data)
-            command += str(len(pdata))
+            command += bytes(str(len(pdata)), 'utf-8')
             logging.debug( "<- %s" % command)
-            self.push(command + "\n" + pdata)
+            self.push(command + b"\n" + pdata)
         else:
             logging.debug( "<- %s" % command)
-            self.push(command + "\n")
+            self.push(command + b"\n")
 
     def found_terminator(self):
-        if not self.auth == "Done":
-            command, data = (''.join(self.buffer).split(":",1))
+        if not self.auth == b"Done":
+            command, data = (b''.join(self.buffer).split(b":", 1))
             self.process_unauthed_command(command, data)
         elif not self.mid_command:
-            logging.debug("-> %s" % ''.join(self.buffer))
-            command, length = (''.join(self.buffer)).split(":", 1)
-            if command == "challenge":
+            logging.debug("-> %s" % b''.join(self.buffer))
+            command, length = (b''.join(self.buffer)).split(b":", 1)
+            if command == b"challenge":
                 self.process_command(command, length)
             elif length:
                 self.set_terminator(int(length))
@@ -86,37 +87,37 @@ class Protocol(asynchat.async_chat):
             else:
                 self.process_command(command)
         else: # Read the data segment from the previous command
-            if not self.auth == "Done":
+            if not self.auth == b"Done":
                 logging.fatal("Recieved pickled data from unauthed source")
                 sys.exit(1)
-            data = pickle.loads(''.join(self.buffer))
-            self.set_terminator("\n")
+            data = pickle.loads(b''.join(self.buffer))
+            self.set_terminator(b"\n")
             command = self.mid_command
             self.mid_command = None
             self.process_command(command, data)
         self.buffer = []
 
     def send_challenge(self):
-        self.auth = os.urandom(20).encode("hex")
-        self.send_command(":".join(["challenge", self.auth]))
+        self.auth = binascii.hexlify(os.urandom(20))
+        self.send_command(b":".join([b"challenge", self.auth]))
 
     def respond_to_challenge(self, command, data):
         mac = hmac.new(self.password, data, hashlib.sha1)
-        self.send_command(":".join(["auth", mac.digest().encode("hex")]))
+        self.send_command(b":".join([b"auth", binascii.hexlify(mac.digest())]))
         self.post_auth_init()
 
     def verify_auth(self, command, data):
         mac = hmac.new(self.password, self.auth, hashlib.sha1)
-        if data == mac.digest().encode("hex"):
-            self.auth = "Done"
+        if data == binascii.hexlify(mac.digest()):
+            self.auth = b"Done"
             logging.info("Authenticated other end")
         else:
             self.handle_close()
 
     def process_command(self, command, data=None):
         commands = {
-            'challenge': self.respond_to_challenge,
-            'disconnect': lambda x, y: self.handle_close(),
+            b'challenge': self.respond_to_challenge,
+            b'disconnect': lambda x, y: self.handle_close(),
             }
 
         if command in commands:
@@ -127,9 +128,9 @@ class Protocol(asynchat.async_chat):
 
     def process_unauthed_command(self, command, data=None):
         commands = {
-            'challenge': self.respond_to_challenge,
-            'auth': self.verify_auth,
-            'disconnect': lambda x, y: self.handle_close(),
+            b'challenge': self.respond_to_challenge,
+            b'auth': self.verify_auth,
+            b'disconnect': lambda x, y: self.handle_close(),
             }
 
         if command in commands:
@@ -174,20 +175,20 @@ class Client(Protocol):
         if self.collectfn:
             for k in results:
                 results[k] = [self.collectfn(k, results[k])]
-        self.send_command('mapdone', (data[0], results))
+        self.send_command(b'mapdone', (data[0], results))
 
     def call_reducefn(self, command, data):
         logging.info("Reducing %s" % str(data[0]))
         results = self.reducefn(data[0], data[1])
-        self.send_command('reducedone', (data[0], results))
+        self.send_command(b'reducedone', (data[0], results))
         
     def process_command(self, command, data=None):
         commands = {
-            'mapfn': self.set_mapfn,
-            'collectfn': self.set_collectfn,
-            'reducefn': self.set_reducefn,
-            'map': self.call_mapfn,
-            'reduce': self.call_reducefn,
+            b'mapfn': self.set_mapfn,
+            b'collectfn': self.set_collectfn,
+            b'reducefn': self.set_reducefn,
+            b'map': self.call_mapfn,
+            b'reduce': self.call_reducefn,
             }
 
         if command in commands:
@@ -209,7 +210,9 @@ class Server(asyncore.dispatcher, object):
         self.datasource = None
         self.password = None
 
-    def run_server(self, password="", port=DEFAULT_PORT):
+    def run_server(self, password=b"", port=DEFAULT_PORT):
+        if (type(password) == str):
+            password = bytes(password, "utf-8")
         self.password = password
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.bind(("", port))
@@ -222,8 +225,9 @@ class Server(asyncore.dispatcher, object):
         
         return self.taskmanager.results
 
-    def handle_accept(self):
-        conn, addr = self.accept()
+    # def handle_accepted(self):
+    def handle_accepted(self, conn, addr):
+        # conn, addr = self.accept()
         sc = ServerChannel(conn, self)
         sc.password = self.password
 
@@ -270,8 +274,8 @@ class ServerChannel(Protocol):
 
     def process_command(self, command, data=None):
         commands = {
-            'mapdone': self.map_done,
-            'reducedone': self.reduce_done,
+            b'mapdone': self.map_done,
+            b'reducedone': self.reduce_done,
             }
 
         if command in commands:
@@ -281,11 +285,11 @@ class ServerChannel(Protocol):
 
     def post_auth_init(self):
         if self.server.mapfn:
-            self.send_command('mapfn', marshal.dumps(self.server.mapfn.__code__))
+            self.send_command(b'mapfn', marshal.dumps(self.server.mapfn.__code__))
         if self.server.reducefn:
-            self.send_command('reducefn', marshal.dumps(self.server.reducefn.__code__))
+            self.send_command(b'reducefn', marshal.dumps(self.server.reducefn.__code__))
         if self.server.collectfn:
-            self.send_command('collectfn', marshal.dumps(self.server.collectfn.__code__))
+            self.send_command(b'collectfn', marshal.dumps(self.server.collectfn.__code__))
         self.start_new_task()
     
 class TaskManager:
@@ -311,11 +315,11 @@ class TaskManager:
                 map_key = next(self.map_iter)
                 map_item = map_key, self.datasource[map_key]
                 self.working_maps[map_item[0]] = map_item[1]
-                return ('map', map_item)
+                return (b'map', map_item)
             except StopIteration:
                 if len(self.working_maps) > 0:
                     key = random.choice(list(self.working_maps.keys()))
-                    return ('map', (key, self.working_maps[key]))
+                    return (b'map', (key, self.working_maps[key]))
                 self.state = TaskManager.REDUCING
                 self.reduce_iter = iter(self.map_results.items())
                 self.working_reduces = {}
@@ -324,15 +328,15 @@ class TaskManager:
             try:
                 reduce_item = next(self.reduce_iter)
                 self.working_reduces[reduce_item[0]] = reduce_item[1]
-                return ('reduce', reduce_item)
+                return (b'reduce', reduce_item)
             except StopIteration:
                 if len(self.working_reduces) > 0:
                     key = random.choice(list(self.working_reduces.keys()))
-                    return ('reduce', (key, self.working_reduces[key]))
+                    return (b'reduce', (key, self.working_reduces[key]))
                 self.state = TaskManager.FINISHED
         if self.state == TaskManager.FINISHED:
             self.server.handle_close()
-            return ('disconnect', None)
+            return (b'disconnect', None)
     
     def map_done(self, data):
         # Don't use the results if they've already been counted
@@ -368,6 +372,8 @@ def run_client():
         logging.basicConfig(level=logging.DEBUG)
 
     client = Client()
+    if (type(options.password) == str):
+        options.password = bytes(options.password, "utf-8")
     client.password = options.password
     client.conn(args[0], options.port)
                       

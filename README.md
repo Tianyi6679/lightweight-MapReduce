@@ -1,3 +1,5 @@
+(ziyuang: this implementation has been ported to Python 3.x, see the commits of mincemeat.py)
+
 mincemeat.py: MapReduce on Python
 =================================
 

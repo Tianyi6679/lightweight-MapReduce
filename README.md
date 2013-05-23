@@ -1,4 +1,4 @@
-(ziyuang: this implementation has been ported to Python 3.x, see the commits of mincemeat.py)
+(From ziyuang: this repository is the port of mincemeatpy for Python 3.x, see the commits of mincemeat.py. Below is the original README texts)
 
 mincemeat.py: MapReduce on Python
 =================================

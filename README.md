@@ -57,7 +57,7 @@ s.mapfn = mapfn
 s.reducefn = reducefn
 
 results = s.run_server(password="changeme")
-print results
+print(results)
 ```
 
 Execute this script on the server:

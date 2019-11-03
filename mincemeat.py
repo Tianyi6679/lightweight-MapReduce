@@ -44,7 +44,6 @@ VERSION = "0.1.2"
 DEFAULT_PORT = 11235
 
 
-
 class Protocol(asynchat.async_chat):
     def __init__(self, conn=None):
         if conn:
@@ -61,15 +60,15 @@ class Protocol(asynchat.async_chat):
         self.buffer.append(data)
 
     def send_command(self, command, data=None):
-        if not b":" in command:
+        if b":" not in command:
             command += b":"
         if data:
             pdata = pickle.dumps(data)
             command += bytes(str(len(pdata)), 'utf-8')
-            logging.debug( "<- %s" % command)
+            logging.debug("<- %s" % command)
             self.push(command + b"\n" + pdata)
         else:
-            logging.debug( "<- %s" % command)
+            logging.debug("<- %s" % command)
             self.push(command + b"\n")
 
     def found_terminator(self):
@@ -211,7 +210,7 @@ class Server(asyncore.dispatcher, object):
         self.password = None
 
     def run_server(self, password=b"", port=DEFAULT_PORT):
-        if (type(password) == str):
+        if type(password) == str:
             password = bytes(password, "utf-8")
         self.password = password
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -225,9 +224,7 @@ class Server(asyncore.dispatcher, object):
         
         return self.taskmanager.results
 
-    # def handle_accepted(self):
     def handle_accepted(self, conn, addr):
-        # conn, addr = self.accept()
         sc = ServerChannel(conn, self)
         sc.password = self.password
 
@@ -260,7 +257,7 @@ class ServerChannel(Protocol):
 
     def start_new_task(self):
         command, data = self.server.taskmanager.next_task(self)
-        if command == None:
+        if command is None:
             return
         self.send_command(command, data)
 
@@ -291,7 +288,8 @@ class ServerChannel(Protocol):
         if self.server.collectfn:
             self.send_command(b'collectfn', marshal.dumps(self.server.collectfn.__code__))
         self.start_new_task()
-    
+
+
 class TaskManager:
     START = 0
     MAPPING = 1
@@ -318,6 +316,7 @@ class TaskManager:
                 return (b'map', map_item)
             except StopIteration:
                 if len(self.working_maps) > 0:
+                    ''' random-duplicate policy '''
                     key = random.choice(list(self.working_maps.keys()))
                     return (b'map', (key, self.working_maps[key]))
                 self.state = TaskManager.REDUCING
@@ -357,6 +356,7 @@ class TaskManager:
         self.results[data[0]] = data[1]
         del self.working_reduces[data[0]]
 
+
 def run_client():
     parser = optparse.OptionParser(usage="%prog [options]", version="%%prog %s"%VERSION)
     parser.add_option("-p", "--password", dest="password", default="", help="password")
@@ -372,7 +372,7 @@ def run_client():
         logging.basicConfig(level=logging.DEBUG)
 
     client = Client()
-    if (type(options.password) == str):
+    if type(options.password) == str:
         options.password = bytes(options.password, "utf-8")
     client.password = options.password
     client.conn(args[0], options.port)

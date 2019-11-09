@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 import distmm
+import fileiter
 
-data = ["Humpty Dumpty sat on a wall",
-        "Humpty Dumpty had a great fall",
-        "All the King's horses and all the King's men",
-        "Couldn't put Humpty together again",
-        ]
-data *= 10
+data = fileiter.read('1342-0.txt', 500)
 # The data source can be any dictionary-like object
 datasource = dict(enumerate(data))
 
@@ -29,3 +25,4 @@ options = {
 
 results = distmm.run_server(options)
 print(results)
+print(len(results))

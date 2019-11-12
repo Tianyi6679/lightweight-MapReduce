@@ -16,3 +16,8 @@ For more command-line options
 python distmm.py -h
 ```
 
+How to test
+--------------------
+```bash
+python3 -m unittest discover -v
+```

@@ -52,13 +52,26 @@ class Registry:
         """
         return dill.loads(bytes.fromhex(hex_string))
 
-    def generate_key(self, function, filename):
+    def generate_key(self, function, data):
+        """
+        The function to generate a unique key from a function and data.
+  
+        Parameters: 
+            function: The function to be serialized.
+            data: The data to be hashed.
+          
+        Returns: 
+            Str: Returns unique key generated from function and data.
+        """
+        return self.serialize(function) + self.__hash_data(data)
+
+    def generate_key_from_file(self, function, filename):
         """
         The function to generate a unique key from a function and file.
   
         Parameters: 
             function: The function to be serialized.
-            filename: The name of file to be serialized.
+            filename: The name of file to be hashed.
           
         Returns: 
             Str: Returns unique key generated from function and file.
@@ -80,6 +93,18 @@ class Registry:
             buf = file.read()
             hasher.update(buf.encode('utf-8'))
         return hasher.hexdigest()
+
+    def __hash_data(self, data):
+        """
+        The function to hash a file.
+  
+        Parameters: 
+            filename: The name of file to be serialized.
+          
+        Returns: 
+            Str: Returns hash generated from file.
+        """
+        return hashlib.md5(data.encode('utf-8')).hexdigest()
 
     # def register(self, function):
     #     ser = self.serialize(function)

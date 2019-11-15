@@ -29,6 +29,12 @@ class TestRegistry(unittest.TestCase):
 
     def test_generate_key(self):
         content = "hello world"
+        key = self.reg.generate_key(identity, content)
+        self.assertTrue(type(self.reg) is Registry)
+        self.assertTrue(type(key) is str)
+
+    def test_generate_key_from_file(self):
+        content = "hello world"
         directory = "temp"
         filename = "temp/temp1.txt"
         if not os.path.exists(directory):
@@ -36,8 +42,9 @@ class TestRegistry(unittest.TestCase):
         file = open(filename, 'w')
         file.write(content)
         file.close()
-        key = self.reg.generate_key(identity, filename)
+        key = self.reg.generate_key_from_file(identity, filename)
         self.assertTrue(type(self.reg) is Registry)
+        self.assertTrue(type(key) is str)
         shutil.rmtree(directory)
 
 if __name__ == '__main__':

@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 import distmm
-import fileiter
 
-data = fileiter.read('1342-0.txt', 500)
+data = ['1342-0.txt_split_4\\1342-0.txt_0',
+        '1342-0.txt_split_4\\1342-0.txt_1',
+        '1342-0.txt_split_4\\1342-0.txt_2',
+        '1342-0.txt_split_4\\1342-0.txt_3']
 # The data source can be any dictionary-like object
 datasource = dict(enumerate(data))
+
+print(datasource)
 
 
 def mapfn(k, v):
@@ -24,5 +28,3 @@ options = {
 }
 
 results = distmm.run_server(options)
-print(results)
-print(len(results))

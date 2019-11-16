@@ -1,4 +1,5 @@
 import mincemeat
+from mincemeat import Protocol
 import socket
 import time
 import sys
@@ -8,12 +9,16 @@ import multiprocessing
 from multiprocessing import Pool, Process
 import optparse
 import collections
+import fileiter
+import pickle
 
 MINIMUM_CLIENT_SLEEP_SECONDS = 1
 DEFAULT_HOSTNAME = 'localhost'
 DEFAULT_PASSWORD = 'changeme'
 VERSION = '0.0.1'
 DEFAULT_PORT = mincemeat.DEFAULT_PORT
+READ_STEP = 500
+DELIMITER = ' '
 
 
 class Client(mincemeat.Client):
@@ -23,9 +28,19 @@ class Client(mincemeat.Client):
         if id is not None:
             self.id = id
 
-    def call_mapfn(self, command, data):
+    def start_map(self, command, data):
         logging.info("Mapping %s at client %s" % (str(data[0]), self.id))
+        file = dict(enumerate(fileiter.read(data[1], READ_STEP)))
         results = {}
+        ''' running map func on assigned split '''
+        for key, lines in file.items():
+            self.call_mapfn(results, (key, lines))
+
+        output_file = "%s_map_output" % data[0]
+        pickle.dump(results, open(output_file, 'wb'))
+        self.send_command(b'mapdone', (data[0], [output_file]))
+
+    def call_mapfn(self, results, data):
         for k, v in self.mapfn(data[0], data[1]):
             if k not in results:
                 results[k] = []
@@ -33,12 +48,42 @@ class Client(mincemeat.Client):
         if self.collectfn:
             for k in results:
                 results[k] = [self.collectfn(k, results[k])]
-        self.send_command(b'mapdone', (data[0], results))
+        ''' TODO: add partition function '''
 
-    def call_reducefn(self, command, data):
+    def start_reduce(self, command, data):
         logging.info("Reducing %s at client %s" % (str(data[0]), self.id))
-        results = self.reducefn(data[0], data[1])
-        self.send_command(b'reducedone', (data[0], results))
+        input_files = data[1]
+        results = {}
+        for file in input_files:
+            input_file = pickle.load(open(file, 'rb'))
+            for k, v in input_file.items():
+                if k not in results:
+                    results[k] = v
+                results[k].extend(v)
+
+        output_file = "%s_reduce_output" % data[0]
+        file = open(output_file, 'w')
+        for k, v in results.items():
+            file.write("%s, %s\n" % (k, str(self.call_reducefn((k, v)))))
+        file.close()
+        self.send_command(b'reducedone', (data[0], output_file))
+
+    def call_reducefn(self, data):
+        return self.reducefn(data[0], data[1])
+
+    def process_command(self, command, data=None):
+        commands = {
+            b'mapfn': self.set_mapfn,
+            b'collectfn': self.set_collectfn,
+            b'reducefn': self.set_reducefn,
+            b'map': self.start_map,
+            b'reduce': self.start_reduce,
+            }
+
+        if command in commands:
+            commands[command](command, data)
+        else:
+            Protocol.process_command(self, command, data)
 
     def run(self, options):
 

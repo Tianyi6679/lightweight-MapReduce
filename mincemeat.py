@@ -42,6 +42,7 @@ VERSION = "0.1.2"
 
 
 DEFAULT_PORT = 11235
+DELIMITER = ' '
 
 
 class Protocol(asynchat.async_chat):
@@ -342,10 +343,15 @@ class TaskManager:
         if not data[0] in self.working_maps:
             return
 
-        for (key, values) in data[1].items():
+        # for (key, values) in data[1].items():
+        #     if key not in self.map_results:
+        #         self.map_results[key] = []
+        #     self.map_results[key].extend(values)
+        outputs = data[1]
+        for key, output in enumerate(outputs):
             if key not in self.map_results:
                 self.map_results[key] = []
-            self.map_results[key].extend(values)
+            self.map_results[key].append(output)
         del self.working_maps[data[0]]
                                 
     def reduce_done(self, data):
@@ -353,8 +359,9 @@ class TaskManager:
         if not data[0] in self.working_reduces:
             return
 
-        self.results[data[0]] = data[1]
+        # self.results[data[0]] = data[1]
         del self.working_reduces[data[0]]
+        print("reduce task %s is done => %s" % data)
 
 
 def run_client():

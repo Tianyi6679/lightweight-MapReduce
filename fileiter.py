@@ -4,7 +4,8 @@ import os
 
 
 def read(filename, n=20):
-    with open(filename, 'r', encoding="utf8") as f:
+    # if you get UnicodeDecodingError below, try specifying utf-8 as encoding method
+    with open(filename, 'r') as f:
         while True:
             lines = ''.join([line for line in islice(f, n)])
             if lines == '':

@@ -11,10 +11,7 @@ import optparse
 import collections
 import fileiter
 import pickle
-import mincemeatpy.registry
-from functools4 import lru_cache
-import copy
-from cacheData import CacheData
+from mincemeatpy.registry import Registry
 
 MINIMUM_CLIENT_SLEEP_SECONDS = 1
 DEFAULT_HOSTNAME = 'localhost'
@@ -29,18 +26,25 @@ class Client(mincemeat.Client):
 
     def __init__(self, id=None):
         mincemeat.Client.__init__(self)
+        self.key = ''
+        self.input_file = ''
+        self.command = b''
         if id is not None:
             self.id = id
 
     def validate(self, command, data):
+        task_id, input_file = data
         self.key = ''
-        self.input_file  = data[1]
-        self.task = command
+        self.command = command
+        self.input_file = input_file
         if command == b'map':
-            self.key = generate_key(self.mapfn, data[1])
+            logging.info("Validate map task")
+            self.key = Registry.get_instance().generate_key(self.mapfn, input_file)
         else:
-            self.key = generate_key_from_files(self.reducefn, data[1])
-        self.send_command(b'keyurl', ((self.key, None))
+            logging.info("Validate reduce task for %s" % str(input_file[-1]))
+            self.key = ''
+            #self.key = Registry.get_instance().generate_key_from_files(self.reducefn, input_file)
+        self.send_command(b'keyurl', (task_id, (self.key, None)))
 
     def start_map(self, command, data):
         logging.info("Mapping %s at client %s" % (str(data[0]), self.id))
@@ -52,6 +56,7 @@ class Client(mincemeat.Client):
 
         output_file = "%s_map_output" % data[0]
         pickle.dump(results, open(output_file, 'wb'))
+        logging.info("generate map results at %s" % output_file)
         self.send_command(b'mapdone', (data[0], (self.key, [output_file])))
 
     def call_mapfn(self, results, data):
@@ -80,24 +85,27 @@ class Client(mincemeat.Client):
         for k, v in results.items():
             file.write("%s, %s\n" % (k, str(self.call_reducefn((k, v)))))
         file.close()
-        self.send_command(b'reducedone', (data[0], (self.key, output_file))
+        self.send_command(b'reducedone', (data[0], (self.key, output_file)))
 
     def call_reducefn(self, data):
         return self.reducefn(data[0], data[1])
 
     def start_task(self, command, data):
-        if data[1] == None:
+        task_id, url = data
+        if url is None:
             commands = {
                 b'map': self.start_map,
                 b'reduce': self.start_reduce
             }
-            commands[self.command](self.command, (data[0], self.input_file))
+            commands[self.command](self.command, (task_id, self.input_file))
         else:
-            commnads = {
+            commands = {
                 b'map': b'mapdone',
                 b'reduce': b'reducedone'
             }
-            self.send_command(commands[self.command], data)
+            if command == b'map':
+                url = [url]
+            self.send_command(commands[self.command], (task_id, (self.key, url)))
             
     def process_command(self, command, data=None):
         commands = {
@@ -107,7 +115,7 @@ class Client(mincemeat.Client):
             b'map': self.validate,
             b'reduce': self.validate,
             b'url': self.start_task
-            }
+        }
 
         if command in commands:
             commands[command](command, data)
@@ -295,7 +303,7 @@ def run_server(options):
 
 def listener_configurer():
     root = logging.getLogger()
-    h = logging.handlers.RotatingFileHandler('mptest.log', 'a', 30000, 5)
+    h = logging.FileHandler('debug.log', 'a')
     f = logging.Formatter('%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s')
     h.setFormatter(f)
     root.addHandler(h)

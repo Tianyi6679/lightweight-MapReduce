@@ -11,6 +11,10 @@ import optparse
 import collections
 import fileiter
 import pickle
+import mincemeatpy.registry
+from functools4 import lru_cache
+import copy
+from cacheData import CacheData
 
 MINIMUM_CLIENT_SLEEP_SECONDS = 1
 DEFAULT_HOSTNAME = 'localhost'
@@ -28,6 +32,16 @@ class Client(mincemeat.Client):
         if id is not None:
             self.id = id
 
+    def validate(self, command, data):
+        self.key = ''
+        self.input_file  = data[1]
+        self.task = command
+        if command == b'map':
+            self.key = generate_key(self.mapfn, data[1])
+        else:
+            self.key = generate_key_from_files(self.reducefn, data[1])
+        self.send_command(b'keyurl', ((self.key, None))
+
     def start_map(self, command, data):
         logging.info("Mapping %s at client %s" % (str(data[0]), self.id))
         file = dict(enumerate(fileiter.read(data[1], READ_STEP)))
@@ -38,7 +52,7 @@ class Client(mincemeat.Client):
 
         output_file = "%s_map_output" % data[0]
         pickle.dump(results, open(output_file, 'wb'))
-        self.send_command(b'mapdone', (data[0], [output_file]))
+        self.send_command(b'mapdone', (data[0], (self.key, [output_file])))
 
     def call_mapfn(self, results, data):
         for k, v in self.mapfn(data[0], data[1]):
@@ -66,18 +80,33 @@ class Client(mincemeat.Client):
         for k, v in results.items():
             file.write("%s, %s\n" % (k, str(self.call_reducefn((k, v)))))
         file.close()
-        self.send_command(b'reducedone', (data[0], output_file))
+        self.send_command(b'reducedone', (data[0], (self.key, output_file))
 
     def call_reducefn(self, data):
         return self.reducefn(data[0], data[1])
 
+    def start_task(self, command, data):
+        if data[1] == None:
+            commands = {
+                b'map': self.start_map,
+                b'reduce': self.start_reduce
+            }
+            commands[self.command](self.command, (data[0], self.input_file))
+        else:
+            commnads = {
+                b'map': b'mapdone',
+                b'reduce': b'reducedone'
+            }
+            self.send_command(commands[self.command], data)
+            
     def process_command(self, command, data=None):
         commands = {
             b'mapfn': self.set_mapfn,
             b'collectfn': self.set_collectfn,
             b'reducefn': self.set_reducefn,
-            b'map': self.start_map,
-            b'reduce': self.start_reduce,
+            b'map': self.validate,
+            b'reduce': self.validate,
+            b'url': self.start_task
             }
 
         if command in commands:
@@ -227,7 +256,6 @@ class Server(mincemeat.Server):
         self.mapfn = map_default
         self.reducefn = reduce_default
 
-
 def run_server(options):
 
     parser = client_options_parser()
@@ -286,7 +314,6 @@ def listener_process(queue, configurer):
             import sys, traceback
             print('Whoops! Problem:', file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
-
 
 if __name__ == '__main__':
 

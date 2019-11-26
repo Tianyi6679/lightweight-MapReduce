@@ -239,6 +239,29 @@ class Server(asyncore.dispatcher, object):
     def get_datasource(self):
         return self._datasource
 
+    @lru_cache(maxsize=None)
+    def cache(self, key, url=None):
+        if url is not None:
+            return url
+        return None
+
+    def writeToCache(self, command, data):
+        key, url = data
+        self.send_command(b'url', (data[0], self.cache(key, url)))
+
+    def process_command(self, command, data=None):
+        commands = {
+            b'challenge': self.respond_to_challenge,
+            b'disconnect': lambda x, y: self.handle_close(),
+            b'keyurl': self.writeToCache
+            }
+
+        if command in commands:
+            commands[command](command, data)
+        else:
+            logging.critical("Unknown command received: %s" % (command,)) 
+            self.handle_close()
+
     datasource = property(get_datasource, set_datasource)
 
 
@@ -263,10 +286,14 @@ class ServerChannel(Protocol):
         self.send_command(command, data)
 
     def map_done(self, command, data):
+        key, url = data[1]
+        self.server.cache(key, url[0])
         self.server.taskmanager.map_done(data)
         self.start_new_task()
 
     def reduce_done(self, command, data):
+        key, url = data[1]
+        self.server.cache(key, url)
         self.server.taskmanager.reduce_done(data)
         self.start_new_task()
 

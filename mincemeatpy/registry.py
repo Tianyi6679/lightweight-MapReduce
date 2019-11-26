@@ -78,6 +78,21 @@ class Registry:
         """
         return self.serialize(function) + self.__hash_file(filename)
 
+    def generate_key_from_files(self, function, filenames):
+        """
+        The function to generate a unique key from a function and files.
+  
+        Parameters: 
+            function: The function to be serialized.
+            filename: The name of files to be hashed.
+          
+        Returns: 
+            Str: Returns unique key generated from function and files.
+        """
+        result = list(map(self.__hash_file, filenames))
+        result.sort()
+        return self.serialize(function) + "".join(result)
+
     def __hash_file(self, filename):
         """
         The function to hash a file.

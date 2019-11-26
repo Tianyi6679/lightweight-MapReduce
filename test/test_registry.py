@@ -47,5 +47,25 @@ class TestRegistry(unittest.TestCase):
         self.assertTrue(type(key) is str)
         shutil.rmtree(directory)
 
+    def test_generate_key_from_files(self):
+        content = "hello world"
+        directory = "temp"
+        filename = "temp/temp1.txt"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        file = open(filename, 'w')
+        file.write(content)
+        file.close()
+        content2 = "foo bar"
+        filename2 = "temp/temp2.txt"
+        file2 = open(filename2, 'w')
+        file2.write(content2)
+        file2.close()
+        filenames = [filename, filename2]
+        key = self.reg.generate_key_from_files(identity, filenames)
+        self.assertTrue(type(self.reg) is Registry)
+        self.assertTrue(type(key) is str)
+        shutil.rmtree(directory)
+
 if __name__ == '__main__':
     unittest.main()

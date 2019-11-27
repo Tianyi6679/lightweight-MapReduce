@@ -104,9 +104,10 @@ class Registry:
             Str: Returns hash generated from file.
         """
         hasher = hashlib.md5()
-        with open(filename, 'r') as file:
+        print(filename)
+        with open(filename, 'r', encoding='latin1') as file:
             buf = file.read()
-            hasher.update(buf.encode('utf-8'))
+            hasher.update(buf.encode('latin1'))
         return hasher.hexdigest()
 
     def __hash_data(self, data):

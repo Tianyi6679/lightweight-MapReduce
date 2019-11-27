@@ -41,9 +41,9 @@ class Client(mincemeat.Client):
             logging.info("Validate map task")
             self.key = Registry.get_instance().generate_key(self.mapfn, input_file)
         else:
-            logging.info("Validate reduce task for %s" % str(input_file[-1]))
-            self.key = ''
-            #self.key = Registry.get_instance().generate_key_from_files(self.reducefn, input_file)
+            logging.info("Validate reduce task for %s" % input_file[0])
+            # self.key = ''
+            self.key = Registry.get_instance().generate_key_from_files(self.reducefn, input_file)
         self.send_command(b'keyurl', (task_id, (self.key, None)))
 
     def start_map(self, command, data):
@@ -103,7 +103,7 @@ class Client(mincemeat.Client):
                 b'map': b'mapdone',
                 b'reduce': b'reducedone'
             }
-            if command == b'map':
+            if self.command == b'map':
                 url = [url]
             self.send_command(commands[self.command], (task_id, (self.key, url)))
             

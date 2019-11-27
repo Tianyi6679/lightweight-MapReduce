@@ -346,6 +346,7 @@ class TaskManager:
             try:
                 reduce_item = next(self.reduce_iter)
                 self.working_reduces[reduce_item[0]] = reduce_item[1]
+                print(str(reduce_item[1]))
                 return (b'reduce', reduce_item)
             except StopIteration:
                 if len(self.working_reduces) > 0:

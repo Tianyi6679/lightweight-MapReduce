@@ -624,6 +624,13 @@ def _lru_cache_wrapper2(user_function, maxsize, typed, _CacheInfo):
         return hits;
     def get_cache_3():
         return full;
+    def checkCache(userKey):
+        try:
+            result = cache[userKey]
+            return result
+        except :
+            result = None
+            return result
     def set_cache_dictionary(cache_1,root_1,hits_1,full_1):
 
         nonlocal cache,root, hits, misses, full,cache_len
@@ -642,6 +649,7 @@ def _lru_cache_wrapper2(user_function, maxsize, typed, _CacheInfo):
     wrapper.get_cache_1 = get_cache_1
     wrapper.get_cache_2 = get_cache_2
     wrapper.get_cache_3 = get_cache_3
+    wrapper.checkCache = checkCache
     return wrapper
 
 try:

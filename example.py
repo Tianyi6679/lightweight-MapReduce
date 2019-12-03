@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import distmm
+import re
+import string
 
 data = ['mac/1342-0.txt_split_4/1342-0.txt_0',
         'mac/1342-0.txt_split_4/1342-0.txt_1',
@@ -12,8 +14,8 @@ print(datasource)
 
 
 def mapfn(k, v):
-    for w in v.split():
-        yield w, 1
+    for w in re.sub('['+string.punctuation+']', '', v).split():
+        yield w.lower(), 1
 
 
 def reducefn(k, vs):

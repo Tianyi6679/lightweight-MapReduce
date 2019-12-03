@@ -40,6 +40,8 @@ import binascii
 from functools4 import lru_cache
 import copy
 from cacheData import CacheData
+import re
+import string
 VERSION = "0.1.2"
 
 

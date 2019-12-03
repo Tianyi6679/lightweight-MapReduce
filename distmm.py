@@ -12,6 +12,8 @@ import collections
 import fileiter
 import pickle
 from mincemeatpy.registry import Registry
+import re
+import string
 
 MINIMUM_CLIENT_SLEEP_SECONDS = 1
 DEFAULT_HOSTNAME = 'localhost'

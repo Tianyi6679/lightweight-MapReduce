@@ -213,6 +213,7 @@ class Server(asyncore.dispatcher, object):
         self.collectfn = None
         self.datasource = None
         self.password = None
+        self.cache_on = True
 
     def run_server(self, password=b"", port=DEFAULT_PORT):
         if type(password) == str:
@@ -268,13 +269,15 @@ class ServerChannel(Protocol):
 
     def map_done(self, command, data):
         task_id, (key, url) = data
-        self.cache(key, url[0])
+        if self.server.cache_on:
+            self.cache(key, url[0])
         self.server.taskmanager.map_done((task_id, url))
         self.start_new_task()
 
     def reduce_done(self, command, data):
         task_id, (key, url) = data
-        self.cache(key, url)
+        if self.server.cache_on:
+            self.cache(key, url)
         self.server.taskmanager.reduce_done((task_id, url))
         self.start_new_task()
 
@@ -284,7 +287,8 @@ class ServerChannel(Protocol):
     
     def checkCache(self, command, data):
         task_id, (key, url) = data
-        self.send_command(b'url', (task_id, self.cache.checkCache(key)))
+        result = self.cache.checkCache(key) if self.server.cache_on else None
+        self.send_command(b'url', (task_id, result))
     
     def process_command(self, command, data=None):
         commands = {

@@ -299,7 +299,8 @@ def run_server(options):
 
     if 'reducefn' in options.__dict__:
         server.reducefn = options.reducefn
-
+    if 'cache' in options.__dict__:
+        server.cache_on = options.cache
     return server.run_server(password=options.password)
 
 

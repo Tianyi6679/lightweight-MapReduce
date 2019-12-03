@@ -13,11 +13,12 @@ def read(filename, n=20):
             yield lines
 
 
-def split_file(filename, n=4):
+def split_file(dir, filename, n=4):
     f = read(filename)
-    dirname = "./%s_split_%d" % (filename, n)
+    dirname = "%s/%s_split_%d" % (dir, filename, n)
     try:
-        os.mkdir(dirname)
+        print(dirname)
+        os.makedirs(dirname)
     except FileExistsError:
         print("file already processed, please delete the directory before resplit")
         return
@@ -30,9 +31,10 @@ def split_file(filename, n=4):
 
 def splitter_options_parse():
     parser = optparse.OptionParser(usage='%prog [options]', version='%%prog %s' % '0.0.1')
-    parser.add_option('-f', '--filename', dest='filename', default="", help='name of input file')
+    parser.add_option('-f', '--filename', dest='filename', default='', help='name of input file')
     parser.add_option('-n', '--number_of_splits', dest='number_of_splits', default='4',
                       help='number of splits')
+    parser.add_option('-d', '--dir', dest='dirname', default='windows', help='destination directory')
     return parser
 
 
@@ -42,4 +44,4 @@ if __name__ == '__main__':
     if options.filename == "":
         print("please enter file name")
     else:
-        split_file(options.filename, int(options.number_of_splits))
+        split_file(options.dirname, options.filename, int(options.number_of_splits))

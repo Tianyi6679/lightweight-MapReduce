@@ -279,18 +279,18 @@ class ServerChannel(Protocol):
         self.start_new_task()
 
     @lru_cache(maxsize=None)
-    def cache(self, key, url=None):
-        return None
-
-    def write_to_cache(self, command, data):
+    def cache(self, key, url):
+        return url
+    
+    def checkCache(self, command, data):
         task_id, (key, url) = data
-        self.send_command(b'url', (task_id, self.cache(key, url)))
-
+        self.send_command(b'url', (task_id, self.cache.checkCache(key)))
+    
     def process_command(self, command, data=None):
         commands = {
             b'mapdone': self.map_done,
             b'reducedone': self.reduce_done,
-            b'keyurl': self.write_to_cache
+            b'keyurl': self.checkCache
         }
 
         if command in commands:

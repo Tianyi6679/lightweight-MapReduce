@@ -1,6 +1,7 @@
 Requiremnet
 -----------
 python3, recommmend version 3.7
+
 dill, version 0.3.1.1
 
 How to split file
@@ -36,3 +37,7 @@ How to run benchmark_test
 ```bash
 ./benchmark_test
 ```
+
+Reference
+--------------------
+Our MapReduce system is built upon the basic structure provided by [mincemeatpy](https://github.com/michaelfairley/mincemeatpy)

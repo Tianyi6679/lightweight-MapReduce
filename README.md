@@ -1,6 +1,7 @@
 Requiremnet
 -----------
 python3, recommmend version 3.7
+dill, version 0.3.1.1
 
 How to split file
 --------------------

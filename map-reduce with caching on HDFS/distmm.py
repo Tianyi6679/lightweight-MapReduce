@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import mincemeat
 from mincemeat import Protocol
 import socket
@@ -15,13 +16,95 @@ from mincemeatpy.registry import Registry
 import re
 import string
 
+
+
 MINIMUM_CLIENT_SLEEP_SECONDS = 1
-DEFAULT_HOSTNAME = 'localhost'
+DEFAULT_HOSTNAME = '192.168.56.103'
 DEFAULT_PASSWORD = 'changeme'
 VERSION = '0.0.1'
 DEFAULT_PORT = mincemeat.DEFAULT_PORT
 READ_STEP = 500
 DELIMITER = ' '
+
+
+class ProcessData:
+    messageType=""
+    fileName = ""
+    data = ""
+    dataNodeAddressList=[]
+
+
+
+def copyFromHdfs(key):
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(('192.168.56.103', 12347))
+        sendData= ProcessData();
+        sendData.messageType=4;
+        sendData.fileName=key
+        data_string = pickle.dumps(sendData)
+        filename=client.send(data_string)
+        client.send("FINI".encode())
+        #from_server = client.recv(4096)
+        try:
+           data=b""
+           while True:
+               packet = client.recv(4096)
+               if not packet: break
+               if packet[-4:]=="FINI".encode():
+                 data +=packet[:-4]
+                 break
+               data += packet
+
+               #print(packet)
+        except:
+               print("recv error")
+
+        data_variable = pickle.loads(data)
+        file = open(data_variable.fileName, 'wb')
+        #dump information to that file
+        pickle.dump(data_variable.data, file)
+        # close the file
+        file.close()
+        client.close()
+        return data_variable.data
+
+def copyToHdfs(key,data):
+
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(('192.168.56.103', 12347))
+
+        sendData= ProcessData();
+        sendData.messageType=2;
+        sendData.fileName=key
+
+        sendData.data=data
+
+        data_string = pickle.dumps(sendData)
+        filename=client.send(data_string)
+        client.send("FINI".encode())
+
+        from_server = client.recv(4096)
+        client.close()
+        print (from_server.decode())
+
+def getDataNodeAddress(key):
+
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(('192.168.56.103', 12347))
+
+        sendData= ProcessData();
+        sendData.messageType=3;
+        sendData.fileName=key
+
+        data_string = pickle.dumps(sendData)
+        filename=client.send(data_string)
+
+        from_server = client.recv(4096)
+
+        data_variable = pickle.loads(from_server)
+        print(data_variable.dataNodeAddressList)
+        client.close()
+        #print from_server
 
 
 class Client(mincemeat.Client):
@@ -57,7 +140,8 @@ class Client(mincemeat.Client):
             self.call_mapfn(results, (key, lines))
 
         output_file = "%s_map_output" % data[0]
-        pickle.dump(results, open(output_file, 'wb'))
+        #pickle.dump(results, open(output_file, 'wb'))
+        copyToHdfs(output_file,results)
         logging.info("generate map results at %s" % output_file)
         self.send_command(b'mapdone', (data[0], (self.key, [output_file])))
 
@@ -76,7 +160,8 @@ class Client(mincemeat.Client):
         input_files = data[1]
         results = {}
         for file in input_files:
-            input_file = pickle.load(open(file, 'rb'))
+            #input_file = pickle.load(open(file, 'rb'))
+            input_file =copyFromHdfs(file) 
             for k, v in input_file.items():
                 if k not in results:
                     results[k] = v

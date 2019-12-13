@@ -40,4 +40,4 @@ How to run benchmark_test
 
 Reference
 --------------------
-Our MapReduce system is built upon the basic structure provided by [mincemeatpy](https://github.com/michaelfairley/mincemeatpy)
+Our MapReduce system is built upon the groundwork provided by [mincemeatpy](https://github.com/michaelfairley/mincemeatpy)
